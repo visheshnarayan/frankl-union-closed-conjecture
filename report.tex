@@ -1,0 +1,240 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{microtype}
+
+% Theorem environments
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{conjecture}[theorem]{Conjecture}
+
+% Notation shorthands
+\newcommand{\F}{\mathcal{F}}
+\newcommand{\G}{\mathcal{G}}
+\newcommand{\U}{\mathcal{U}}
+\newcommand{\Pow}{\mathcal{P}}
+\newcommand{\card}[1]{\#\{#1\}}
+
+\title{Frankl's Union-Closed Sets Conjecture\\[0.4em]
+\large Math 475 Individual Report}
+\author{Vishesh Narayan}
+\date{November 12, 2026}
+
+\begin{document}
+\maketitle
+
+\tableofcontents
+\newpage
+
+% ---------------------------------------------------------------
+\section{The Problem}
+% ---------------------------------------------------------------
+
+\subsection{Setup and Notation}
+
+For a positive integer $n$, write $[n] := \{1, 2, \ldots, n\}$ and let
+$\Pow(n) := \Pow([n])$ denote the power set of $[n]$.
+
+\begin{definition}
+A family $\F \subseteq \Pow(n)$ is \emph{union-closed} if for every
+$A, B \in \F$ we also have $A \cup B \in \F$.
+\end{definition}
+
+\begin{definition}
+A family $\F \subseteq \Pow(n)$ is \emph{nontrivial} if
+$\bigcup_{F \in \F} F = [n]$, i.e., every element of the ground set
+appears in at least one member of $\F$.
+Note that any nontrivial union-closed family must contain $[n]$ itself.
+\end{definition}
+
+\begin{example}
+Let $n = 3$ and consider
+\[
+  \F = \bigl\{\{1\},\, \{2\},\, \{1,2\},\, \{1,3\},\, \{2,3\},\,
+              \{1,2,3\}\bigr\}.
+\]
+One checks that $\F$ is union-closed and nontrivial.
+The element frequencies are: element $1$ appears in $4$ of $6$ sets,
+element $2$ appears in $4$ of $6$, element $3$ appears in $3$ of $6$.
+In particular, both $1$ and $2$ appear in at least half the sets.
+\end{example}
+
+\subsection{The Conjecture}
+
+\begin{conjecture}[Frankl's Union-Closed Sets Conjecture, $\sim$1979]
+\label{conj:func}
+For every nontrivial, union-closed family $\F \subseteq \Pow(n)$
+there exists an element $x \in [n]$ such that
+\[
+  \#\{F \in \F : x \in F\} \;\ge\; \frac{1}{2} \cdot \#\F.
+\]
+\end{conjecture}
+
+Despite its elementary statement, Conjecture~\ref{conj:func} has been
+open since the 1980s.  No proof or counterexample is known in general.
+
+\subsection{Equivalent Formulations}
+
+The conjecture admits several equivalent restatements that illuminate
+different aspects of the problem.
+
+\textbf{Intersection-closed dual.}
+For a family $\F \subseteq \Pow(n)$, define the \emph{complement family}
+$\G := \{[n] \setminus F : F \in \F\}$.
+Then $\F$ is union-closed if and only if $\G$ is
+\emph{intersection-closed} (i.e., $A, B \in \G \Rightarrow A \cap B \in \G$).
+Under complementation, an element $x$ is in $F \in \F$ if and only if
+$x \notin [n]\setminus F \in \G$.
+So the conjecture is equivalent to:
+
+\begin{conjecture}[Intersection-Closed Dual]
+For every intersection-closed family $\G \subseteq \Pow(n)$ with
+$\bigcap_{G\in\G} G = \emptyset$, there exists $x \in [n]$ with
+\[
+  \#\{G \in \G : x \in G\} \;\le\; \frac{1}{2}\cdot\#\G.
+\]
+\end{conjecture}
+
+Neither form is obviously easier to work with, but the intersection-closed
+version is natural in lattice theory.
+
+\textbf{Averaging reformulation.}
+An immediate thought is whether a \emph{random} element of $[n]$
+(chosen uniformly) belongs to at least half the sets in expectation.
+This is false in general: for $\F = \{\{1\},\{1,2\},\{1,3\},\{1,2,3\}\}$
+the average membership is $10/4 \cdot \frac{1}{3} < 2 = \frac{1}{2}\#\F$.
+The conjecture is weaker --- it only asserts the \emph{existence} of one
+good element, not that the average element is good \cite{gowers2016}.
+
+\textbf{Interior-operator formulation.}
+For a union-closed family $\F$ containing $\emptyset$, define
+\[
+  \tau : \Pow(n) \to \F, \qquad \tau(X) := \bigcup\{F \in \F : F \subseteq X\}.
+\]
+This map satisfies $\tau(X) \subseteq X$ (exclusivity),
+$X \subseteq Y \Rightarrow \tau(X)\subseteq\tau(Y)$ (monotonicity),
+and $\tau(\tau(X)) = \tau(X)$ (idempotence), making it an
+\emph{interior operator}.
+The correspondence $\F \leftrightarrow \tau$ is a bijection between
+union-closed families containing $\emptyset$ and interior operators on
+$\Pow(n)$ \cite{nagel2023}.
+This viewpoint organises $\Pow(n)$ into \emph{congruence classes}
+$\mathcal{T}(F) = \tau^{-1}(F)$ for each $F \in \F$, each of which is
+closed under intersection and ``interval-complete'' (if $A \subseteq X \subseteq F$
+and $A \in \mathcal{T}(F)$, then $X \in \mathcal{T}(F)$).
+
+% ---------------------------------------------------------------
+\section{What Is Known}
+% ---------------------------------------------------------------
+
+\subsection{Easy cases}
+
+\textbf{Singleton case (folklore).}
+If $\{x\} \in \F$ for some $x$, then for every $F \in \F$ we have
+$F \cup \{x\} \in \F$, so the map $F \mapsto F \cup \{x\}$ is an
+injection from $\{F \in \F : x \notin F\}$ into $\{F \in \F : x \in F\}$.
+Hence element $x$ appears in at least half the sets.
+
+\textbf{Two-element ground set.}
+If $n = 2$ the conjecture is trivial by inspection of all union-closed
+families on $\{1,2\}$.
+
+\textbf{Small families.}
+The conjecture is verified for $\#\F \le 50$ by exhaustive methods
+\cite{bruhn2015}.
+
+\subsection{Density bounds}
+
+Let $\F \subseteq \Pow(n)$ be a nontrivial union-closed family of size
+$m = \#\F$.
+The best known lower bounds on the frequency of the most common element are
+\[
+  \Omega\!\left(\max\!\left\{\sqrt{\frac{\log_2 n}{n}},\;
+    \frac{\log_2 m}{n},\; \frac{1}{\log_2 m}\right\}\right) \cdot m
+\]
+due to Balla~\cite{balla2011}, Reimer~\cite{reimer2003}, and
+W\'{o}jcik~\cite{wojcik1999} respectively (the third improving a
+constant from Knill).
+These bounds confirm the conjecture when $m$ is large relative to $n$,
+but the general case remains open.
+
+\subsection{A weakening via up-sets}
+
+Nagel~\cite{nagel2023} proves the following weakening of the conjecture.
+An \emph{up-set} is a family $\U \subseteq \Pow(n)$ such that
+$A \in \U$ and $A \subseteq B$ imply $B \in \U$.
+
+\begin{theorem}[Nagel 2023]
+\label{thm:upset}
+Let $\F \subseteq \Pow(n)$ be a nontrivial union-closed family.
+There exists an up-set $\U \subseteq \Pow(n)$ with
+$\#\U \le 2^{n-1}$ such that
+\[
+  \#(\F \cap \U) \;\ge\; \tfrac{1}{2} \cdot \#\U.
+\]
+\end{theorem}
+
+This is weaker than the conjecture because for the conjecture we would
+need $\U = [x,[n]] := \{X \subseteq [n] : x \in X\}$ for some specific
+$x$; Theorem~\ref{thm:upset} allows any up-set of bounded size.
+Nevertheless the result is nontrivial: it shows that $\F$ always has
+a large ``dense'' region in the Boolean lattice.
+
+% ---------------------------------------------------------------
+\section{Approaches and Ideas Explored}
+% ---------------------------------------------------------------
+
+% TODO: fill in after working through Nagel (2023) and Gowers (2016)
+
+% ---------------------------------------------------------------
+\section{Progress and Obstacles}
+% ---------------------------------------------------------------
+
+% TODO: fill in
+
+% ---------------------------------------------------------------
+\begin{thebibliography}{9}
+
+\bibitem{bruhn2015}
+H.~Bruhn and O.~Schaudt,
+\textit{The Journey of the Union-Closed Sets Conjecture},
+Graphs and Combinatorics \textbf{31}, pp.~2043--2074 (2015).
+
+\bibitem{nagel2023}
+N.~Nagel,
+\textit{Notes on the Union Closed Sets Conjecture},
+arXiv:2208.03803v2 (2023).
+
+\bibitem{gowers2016}
+W.T.~Gowers et al.,
+\textit{Frankl's union-closed conjecture --- a possible Polymath project?},
+\url{https://gowers.wordpress.com/2016/01/21/frankls-union-closed-conjecture-a-possible-polymath-project/} (2016).
+
+\bibitem{balla2011}
+I.~Balla,
+\textit{Minimum density of union-closed families},
+arXiv:1106.0369 (2011).
+
+\bibitem{reimer2003}
+D.~Reimer,
+\textit{An Average Set Size Theorem},
+Combinatorics, Probability and Computing \textbf{12}, pp.~89--93 (2003).
+
+\bibitem{wojcik1999}
+P.~W\'{o}jcik,
+\textit{Union-closed families of sets},
+Discrete Mathematics \textbf{199}, pp.~173--182 (1999).
+
+\end{thebibliography}
+
+\end{document}

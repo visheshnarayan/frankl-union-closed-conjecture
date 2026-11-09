@@ -1,3 +1,5 @@
 .venv/
-*.png
 READING.md
+icon.pdf
+*.aux
+*.log

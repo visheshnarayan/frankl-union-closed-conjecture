@@ -2,6 +2,10 @@
 
 **Math 475 Research Project · Fall 2026 · Vishesh Narayan**
 
+<p align="center">
+  <img src="icon.png" alt="Hasse diagram of P([3]) illustrating Frankl's conjecture" width="680"/>
+</p>
+
 ---
 
 ## The Problem

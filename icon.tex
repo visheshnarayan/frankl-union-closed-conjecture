@@ -36,7 +36,7 @@
 
 %% ── Background rectangle ───────────────────────────────────────────────────
 \begin{scope}[on background layer]
-  \fill[bg, rounded corners=18pt] (-5.4,-2.9) rectangle (5.4,7.4);
+  \fill[bg, rounded corners=18pt] (-5.4,-3.3) rectangle (5.4,7.4);
 \end{scope}
 
 %% ── Title ──────────────────────────────────────────────────────────────────
@@ -74,20 +74,25 @@
                         ab/abc, ac/abc, bc/abc}
   \draw[hasseplain] (\from) -- (\to);
 
+%% ── Divider line ─────────────────────────────────────────────────────────────
+\draw[edgecolor!50, line width=0.6pt] (-5.0,-1.45) -- (5.0,-1.45);
+
 %% ── Legend ──────────────────────────────────────────────────────────────────
-\node[text=subtitlecolor, font=\scriptsize\sffamily, anchor=west] at (-5.1,-1.6)
+\node[text=subtitlecolor, font=\scriptsize\sffamily, anchor=west] at (-5.1,-1.9)
   {\textcolor{hasone}{$\bullet$} contains element \textcolor{highlight}{1}
    \quad
    \textcolor{infamily}{$\bullet$} in $\mathcal{F}$, no element 1
    \quad
-   \textcolor{notinfamily!120}{$\bullet$} not in $\mathcal{F}$};
+   \textcolor{subtitlecolor}{$\bullet$} not in $\mathcal{F}$};
 
 %% ── Annotation: element-1 fraction ─────────────────────────────────────────
-\node[draw=hasone, rounded corners=5pt, fill=hasone!15,
-      text=titlecolor, font=\small\sffamily,
-      inner sep=5pt] at (0,-2.1)
-  {element \textcolor{highlight}{\textbf{1}} $\in$ \textbf{4} of \textbf{7} sets
+\node[draw=hasone!80, rounded corners=6pt,
+      fill=hasone,                        % solid red background
+      text=white, font=\small\bfseries\sffamily,
+      inner xsep=10pt, inner ysep=6pt] at (0,-2.75)
+  {element \textcolor{highlight}{1} $\in$ 4 of 7 sets
    $\;\Rightarrow\;$ $\tfrac{4}{7} > \tfrac{1}{2}$ \checkmark};
 
+%% ── extend background to fit ─────────────────────────────────────────────────
 \end{tikzpicture}
 \end{document}

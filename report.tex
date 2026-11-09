@@ -138,6 +138,7 @@ and $A \in \mathcal{T}(F)$, then $X \in \mathcal{T}(F)$).
 % ---------------------------------------------------------------
 
 \subsection{Easy cases}
+\label{sec:easy}
 
 \textbf{Singleton case (folklore).}
 If $\{x\} \in \F$ for some $x$, then for every $F \in \F$ we have
@@ -194,13 +195,218 @@ a large ``dense'' region in the Boolean lattice.
 \section{Approaches and Ideas Explored}
 % ---------------------------------------------------------------
 
-% TODO: fill in after working through Nagel (2023) and Gowers (2016)
+\subsection{The injection paradigm}
+
+The most natural proof strategy generalises the singleton argument of
+Section~\ref{sec:easy}.  Fix any element $x \in [n]$ and partition
+\[
+  \F^- := \{A \in \F : x \notin A\}, \qquad
+  \F^+ := \{A \in \F : x \in A\}.
+\]
+The conjecture asks for $|\F^+| \ge |\F^-|$.
+If we can construct an \emph{injective} map
+$\varphi : \F^- \to \F^+$, then immediately $|\F^+| \ge |\F^-|$.
+
+The natural template is to pick, for each $A \in \F^-$, some set
+$B(A) \in \F^+$ and set $\varphi(A) := A \cup B(A)$.
+Since $\F$ is union-closed, $A \cup B(A) \in \F$; since $x \in B(A)$,
+we have $x \in A \cup B(A)$, so $\varphi(A) \in \F^+$.
+Injectivity of $\varphi$ depends on the choice of $B(A)$:
+different sets $A, A'$ must produce distinct images $A \cup B(A) \neq A' \cup B(A')$.
+
+The \emph{singleton injection} (K1) takes $B(A) = \{x\}$ for every $A$,
+valid when $\{x\} \in \F$.
+Injectivity follows because $A \cup \{x\} = A' \cup \{x\}$ implies
+$A = A'$ (both sets agree on $[n] \setminus \{x\}$, and neither contains $x$).
+
+\textbf{Nagel's fiber lemma.}
+Nagel \cite{nagel2023} observes that the singleton argument is a special case of
+a broader principle.
+
+\begin{lemma}[Nagel 2023, Lemma 2.4]
+\label{lem:fiber}
+Let $\F \subseteq \Pow(n)$ be nontrivial and union-closed, $x \in [n]$, and
+let $A \in \F$ with $x \in A$.  Then
+\[
+  \#\{F \in \F : x \in F\} \;\ge\; \frac{1}{2^{\#A - 1} + 1} \cdot \#\F.
+\]
+\end{lemma}
+
+\begin{proof}[Proof sketch]
+Define $\varphi : \F^- \to \F^+$ by $\varphi(G) = G \cup A$.
+For each image $F = G \cup A$, the preimage satisfies
+$\varphi^{-1}(F) = \{G' \subseteq [n]\setminus\{x\} : G' \cap ([n]\setminus A) = F \cap ([n]\setminus A)\}$,
+since $G \cup A = F \Leftrightarrow G \setminus A = F \setminus A$.
+The set $G$ can only vary on $A \setminus \{x\}$, giving $|\varphi^{-1}(F)| \le 2^{\#A-1}$.
+Hence $|\F^-| \le 2^{\#A-1} \cdot |\F^+|$, and rearranging
+$|\F| = |\F^-| + |\F^+| \le (2^{\#A-1}+1)|\F^+|$ gives the lemma.
+\end{proof}
+
+For $A = \{x\}$ (a singleton) the bound gives $|\F^+| \ge \frac{1}{2}|\F|$,
+recovering the folklore result.
+For larger $A$ the bound degrades, but crucially \emph{any} set $A \in \F^+$
+yields a nontrivial lower bound: even when no singleton is present we can
+apply the lemma with the smallest available $A \in \F^+$.
+
+\subsection{Nagel's frequency question}
+
+\label{sec:freq}
+
+Label elements so that
+$f_1 := \#\{F \in \F : 1 \in F\} \ge f_2 \ge \cdots \ge f_n$.
+Conjecture~\ref{conj:func} says $f_1 \ge \tfrac{1}{2}|\F|$.
+What can be said about $f_k$ for $k > 1$?
+
+An iterative argument shows the following.
+If the conjecture holds, the family $\F' := \{F \setminus \{1\} : 1 \in F \in \F\}$
+is again nontrivial and union-closed of size $|\F'| \ge \tfrac{1}{2}|\F|$,
+so by the conjecture applied to $\F'$ there exists $x \in [n] \setminus \{1\}$ with
+$\#\{F \in \F : x \in F\} \ge \tfrac{1}{4}|\F|$,
+and since element $2$ is at least as frequent as $x$, we get $f_2 \ge \tfrac{1}{4}|\F|$.
+Iterating: $f_k \ge 2^{-k}|\F|$.
+This bound is \emph{wasteful}, since at each step we discard all sets not
+containing the previously chosen element.
+
+Nagel \cite{nagel2023} conjectures the tight bound:
+\begin{equation}
+  \label{eq:freqq}
+  f_k \;\ge\; \frac{1}{2^{k-1}+1}\cdot|\F| \qquad \text{for all } k \in [n].
+\end{equation}
+For $k=1$ this is exactly Conjecture~\ref{conj:func}.
+The bound \eqref{eq:freqq} is sharp: take
+$\F = \Pow(k-1) \cup \{[n]\}$; then $|\F| = 2^{k-1}+1$, element $k$ appears
+only in $\{[n]\}$, so $f_k/|\F| = 1/(2^{k-1}+1)$.
+
+Nagel proves \eqref{eq:freqq} for $k = n$ and $k = n-1$ using
+Lemma~\ref{lem:fiber}: for $k = n$, apply the lemma with $x = n$ and $A = [n]$;
+for $k = n-1$, exploit separability to find a set $A \in \F^+_{n-1}$ with
+$|A| \le n-1$ and apply the lemma.
+The cases $k < n-1$ remain open and are equivalent in difficulty to
+the original conjecture.
+
+\subsection{The up-set weakening}
+
+We now outline the proof of Theorem~\ref{thm:upset} following Nagel \cite{nagel2023}.
+Recall that the conjecture is equivalent to: $|\F \cap [x,[n]]| \ge \frac{1}{2}|\F|$
+for some $x$, where $[x,[n]] := \{X \subseteq [n] : x \in X\}$ is an up-set of size $2^{n-1}$.
+Theorem~\ref{thm:upset} relaxes this by allowing \emph{any} up-set.
+
+\textbf{Setup.}
+Assume without loss of generality that $\emptyset \in \F$.
+Define the \emph{interior operator} $\tau : \Pow(n) \to \F$ by
+$\tau(X) := \bigcup\{F \in \F : F \subseteq X\}$
+(the largest element of $\F$ contained in $X$).
+This partitions $\Pow(n)$ into fibres $T(F) := \tau^{-1}(F)$ for each $F \in \F$,
+with $\bigsqcup_{F \in \F} T(F) = \Pow(n)$.
+
+\textbf{Key properties.}
+Each fibre $T(F)$ is intersection-closed and interval-complete
+(if $A \subseteq X \subseteq F$ and $A \in T(F)$, then $X \in T(F)$),
+so $T(F)$ is ``topologically nice''.
+Crucially: if $E \subsetneq F$ in $\F$, then $|T(F)| \le |T(E)|$ (Lemma 3.5 of \cite{nagel2023}).
+Larger sets in $\F$ have smaller fibres.
+
+\textbf{Proof of Theorem~\ref{thm:upset}.}
+Order $\F = \{F_1, \ldots, F_m\}$ with $F_1 = [n]$ and $|T(F_1)| \le \cdots \le |T(F_m)|$.
+(Such an ordering exists by the lemma above and union-closedness.)
+Set $U := \bigcup_{i=1}^{\lceil m/2 \rceil} T(F_i)$.
+
+\emph{$U$ is an up-set.}
+Take $X \in T(F_i)$ with $i \le \lceil m/2 \rceil$ and $Y \supseteq X$.
+By monotonicity of $\tau$, $\tau(Y) \supseteq \tau(X) = F_i$,
+so $\tau(Y) = F_j$ for some $F_j \supseteq F_i$ in $\F$.
+By the ordering, $j \le i \le \lceil m/2 \rceil$, hence $Y \in T(F_j) \subseteq U$.
+
+\emph{$|\F \cap U| \ge \frac{1}{2}|\F|$.}
+By construction, $\F \cap U = \{F_1, \ldots, F_{\lceil m/2 \rceil}\}$.
+
+\emph{$|U| \le 2^{n-1}$.}
+The fibre sizes $f_i := |T(F_i)|$ satisfy $f_1 = 1$ and $\sum_{i=1}^m f_i = 2^n$.
+Since $f_1 \le \cdots \le f_m$, Lemma 3.9 of \cite{nagel2023}
+(a monotone summation estimate) gives
+$|U| = \sum_{i=1}^{\lceil m/2 \rceil} f_i \le \frac{1}{2}\cdot 2^n = 2^{n-1}$.
+\qed
+
+\textbf{Why this is weaker.}
+The up-set $U$ is constructed from the internal structure of $\F$ and
+need not be a star $[x,[n]]$.
+To prove the full conjecture one would need $U = [x, [n]]$ for some specific
+element $x$, which requires controlling not just the size of $U$ but its shape.
+In particular, Remark 3.8 of \cite{nagel2023} notes that the $n$ star-upsets
+form a vanishingly small fraction of all up-sets of size $\le 2^{n-1}$,
+so the gap between the weakening and the conjecture is genuinely large.
+
+\subsection{Averaging arguments and their limitations}
+
+A natural first attempt is an \emph{averaging argument}: show that the average
+element belongs to at least $\frac{1}{2}|\F|$ sets.
+Formally, if we pick $x \in [n]$ uniformly at random, the expected count is
+$\frac{1}{n}\sum_{x=1}^{n} |\{F \in \F : x \in F\}| = \frac{1}{n}\sum_{F \in \F}|F|$.
+This is $\ge \frac{1}{2}|\F|$ iff the average set size is $\ge n/2$, which fails for
+families with many small sets (e.g.\ $\F = \{\{1\}, \{1,2\}, \{1,3\}, \{1,2,3\}\}$ has
+average set size $10/4 = 2.5 < 3/2 = n/2$ for $n = 3$... actually $n/2 = 1.5$,
+so this doesn't give a counterexample; but $\F = \{\{1,2\},\{1,3\},\{2,3\},\{1,2,3\}\}$
+has average size $10/4 = 2.5 < 2 = n/2$).
+In any case, the conjecture is strictly weaker than the averaged version,
+so the averaged version can fail even when the conjecture holds.
+
+Gowers \cite{gowers2016} notes that a \emph{weighted} average might succeed:
+does there exist a probability distribution $\pi$ on $[n]$ such that
+$\mathbb{E}_{x \sim \pi}|\{F \in \F : x \in F\}| \ge \frac{1}{2}|\F|$?
+This is trivially true if the conjecture holds (put all mass on the certifying element),
+so the question must impose conditions on $\pi$ to avoid circularity.
+One might ask for $\pi$ to be defined from $\F$ in a natural way, perhaps via
+entropy maximisation.
+
+Gowers also discusses a probabilistic construction of a potential counterexample:
+choose each $k$-element subset of $[n]$ independently with probability $p$,
+take $\F$ to be all unions of chosen sets.
+If $k < n/2$ then typical unions have size $> n/2$ while the base sets
+each have size $k$; one might hope the small sets are sparse enough
+that every element is in few sets.
+The construction fails: a back-of-envelope calculation shows no choice
+of $k$ and $p$ makes the expected number of small sets dominate.
+The conclusion is that \emph{random} union-closed families overwhelmingly
+satisfy the conjecture, which suggests the hard cases are highly structured
+rather than typical --- matching the tight-case structure we found computationally.
+
+\subsection{Computational exploration}
+\label{sec:comp-rl}
+
+Beyond brute-force enumeration (Section~\ref{sec:enum}), we implemented
+a proof-search framework based on the injection paradigm.
+
+\textbf{Setup.}
+For each sampled union-closed family we try to find a B-selection rule ---
+a prescription for choosing $B(A) \in \F^+$ for each $A \in \F^-$ ---
+that makes $\varphi(A) = A \cup B(A)$ injective.
+We tested seven rules including two known strategies (K1, K2) and five novel ones:
+{\small\texttt{union\_closest}} (pick $B \in \F^+$ minimising $|A \triangle B|$),
+{\small\texttt{union\_superset\_pref}} (prefer $B \supseteq A$), and others.
+
+\textbf{Results.}
+Across 931 episodes with $n \in \{2, 3, 4, 5\}$, an LLM policy successfully
+found injective maps in 84.8\% of episodes (excluding fallbacks).
+Among the novel rules,
+{\small\texttt{union\_closest}} achieved a 96.2\% success rate and
+{\small\texttt{union\_superset\_pref}} achieved 91.6\%;
+the structurally blunt {\small\texttt{union\_max}} succeeded only 40\% of the time.
+
+\textbf{Significance.}
+No single rule succeeded on every family.
+In particular, the tight cases $\{\emptyset, A, [n]\setminus A, [n]\}$ require
+careful element and rule selection, since both elements have equal frequency.
+If a rule could be proved to yield an injective map for \emph{every}
+nontrivial union-closed family, that would constitute a proof of the conjecture.
+The computational evidence suggests {\small\texttt{union\_closest}} is a strong
+candidate for further theoretical analysis.
 
 % ---------------------------------------------------------------
 \section{Progress and Obstacles}
 % ---------------------------------------------------------------
 
 \subsection{Computational verification for small \texorpdfstring{$n$}{n}}
+\label{sec:enum}
 
 We wrote a brute-force enumerator in Python that iterates over all
 subsets of $\Pow(n)$, filters for nontrivial union-closed families,

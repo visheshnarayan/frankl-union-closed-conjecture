@@ -91,6 +91,8 @@ def main():
                         help="Max token length per example")
     parser.add_argument("--lora-r",  type=int,   default=8,
                         help="LoRA rank")
+    parser.add_argument("--multi-gpu", action="store_true",
+                        help="Multi-GPU mode: disables device_map=auto for DDP compatibility")
     args = parser.parse_args()
 
     if not os.path.exists(DATASET_PATH):
@@ -120,7 +122,7 @@ def main():
     model = AutoModelForCausalLM.from_pretrained(
         args.model,
         dtype=dtype,
-        device_map="auto",
+        device_map=None if args.multi_gpu else "auto",
         trust_remote_code=True,
     )
 
@@ -165,7 +167,7 @@ def main():
         eval_strategy="epoch",
         save_strategy="epoch",
         load_best_model_at_end=True,
-        fp16=False,          # keep off for MPS/CPU compatibility
+        fp16=(device == "cuda"),
         bf16=False,
         dataloader_num_workers=0,
         report_to="none",

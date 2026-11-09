@@ -135,19 +135,42 @@ def run_episode(env: FranklEnv, episode: int, show_think: bool = True,
     action = x_idx * N_RULES + rule_idx
     obs, reward, _, _, info = env.step(action)
 
+    def fs(s): return sorted(s)
+
     return {
-        "episode":   episode,
-        "element":   x_idx + 1,
-        "rule":      RULES[rule_idx],
-        "reason":    reason,
+        # ── identity ──────────────────────────────────────────────────────
+        "episode":    episode,
+        "parse_fail": False,
+        # ── state: full family + features ─────────────────────────────────
+        "n":          n,
+        "family":     [fs(F) for F in sorted(family, key=lambda s: (len(s), sorted(s)))],
+        "family_size": len(family),
+        "phi_scores": phi.tolist(),
+        "freqs":      freqs,
+        "has_singleton": any(len(F) == 1 for F in family),
+        "has_empty":     frozenset() in family,
+        "density":       len(family) / (2 ** n),
+        # ── action ────────────────────────────────────────────────────────
+        "element":    x_idx + 1,       # 1-indexed
+        "element_0":  x_idx,           # 0-indexed for env replay
+        "rule":       RULES[rule_idx],
+        "rule_idx":   rule_idx,
+        "reason":     reason,
+        # ── mapping trace: the actual φ built ─────────────────────────────
+        # Each entry: A (bad set), B (chosen partner), image = A∪B
+        # This is the data needed to mine new rules later.
+        "F_bad":          info.get("F_bad", []),
+        "F_good":         info.get("F_good", []),
+        "mapping_trace":  info.get("mapping_trace", []),
+        # ── outcome ───────────────────────────────────────────────────────
         "reward":    reward,
         "injective": info["injective"],
         "known":     info.get("known", False),
         "coverage":  info["coverage"],
-        "elapsed":   elapsed,
+        # ── LLM metadata ──────────────────────────────────────────────────
+        "model":     MODEL,
         "think":     think,
-        "raw":       answer,
-        "parse_fail": False,
+        "elapsed":   elapsed,
     }
 
 
@@ -170,9 +193,12 @@ def main():
 
     # ── Log file setup ────────────────────────────────────────────────────────
     os.makedirs("logs", exist_ok=True)
-    ts       = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_path = f"logs/run_{MODEL.replace(':', '-')}_{ts}_n{args.n}_ep{args.episodes}.txt"
-    log_file = open(log_path, "w")
+    os.makedirs("traces", exist_ok=True)
+    ts         = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_path   = f"logs/run_{MODEL.replace(':', '-')}_{ts}_n{args.n}_ep{args.episodes}.txt"
+    trace_path = f"traces/trace_{MODEL.replace(':', '-')}_{ts}_n{args.n}_ep{args.episodes}.jsonl"
+    log_file   = open(log_path, "w")
+    trace_file = open(trace_path, "w")
 
     def log(line=""):
         print(line)
@@ -191,6 +217,11 @@ def main():
         rule_counts[r["rule"]] += 1
         if r["injective"]:
             rule_success[r["rule"]] += 1
+
+        # Write full trace record (one JSON object per line)
+        trace_file.write(json.dumps({k: v for k, v in r.items()
+                                     if k != "think"}) + "\n")
+        trace_file.flush()
 
         status = "✓ PROVED" if r["injective"] else "✗ failed"
         known  = " [KNOWN]" if r.get("known") else ""
@@ -233,15 +264,10 @@ def main():
         flag = " ← known" if rule in ("union_min", "singleton_injection") else ""
         log(f"  {rule:<25} {c:>7} {s:>10} {s/c:>7.1%}{flag}")
 
-    log(f"\nLog saved to: {log_path}")
+    log(f"\nLog saved   : {log_path}")
+    log(f"Traces saved: {trace_path}  ({args.episodes} records)")
     log_file.close()
-
-    # Also save full results as JSON
-    json_path = log_path.replace(".txt", ".json")
-    with open(json_path, "w") as f:
-        json.dump({"model": MODEL, "n": args.n, "episodes": args.episodes,
-                   "results": [{k: v for k, v in r.items() if k != "think"}
-                                for r in results]}, f, indent=2)
+    trace_file.close()
 
 
 if __name__ == "__main__":

@@ -4,3 +4,4 @@ icon.pdf
 *.aux
 *.log
 logs/
+traces/

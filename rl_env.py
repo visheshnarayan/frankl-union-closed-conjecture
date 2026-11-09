@@ -138,19 +138,28 @@ RULES = [
 N_RULES = len(RULES)
 
 
-def apply_rule(rule_idx: int, A, F_good, x, rng) -> Optional[frozenset]:
-    """Apply rule rule_idx to map A to some element of F."""
+def apply_rule(rule_idx: int, A, F_good, x, rng) -> Optional[tuple[frozenset, frozenset]]:
+    """
+    Apply rule rule_idx to map A → A ∪ B for some B ∈ F_good.
+    Returns (B_chosen, image=A∪B) so callers can record the full mapping detail.
+    Returns None if F_good is empty.
+    """
     if not F_good:
         return None
     r = RULES[rule_idx]
-    if r == "union_min":           return rule_union_min(A, F_good, x)
-    if r == "union_max":           return rule_union_max(A, F_good, x)
-    if r == "union_closest":       return rule_union_closest(A, F_good, x)
-    if r == "union_disjoint_pref": return rule_union_disjoint_pref(A, F_good, x)
-    if r == "union_superset_pref": return rule_union_superset_pref(A, F_good, x)
-    if r == "union_random":        return rule_union_random(A, F_good, x, rng)
-    if r == "singleton_injection": return rule_singleton_injection(A, F_good, x)
-    return None
+    if r == "union_min":           B = min(F_good, key=len)
+    elif r == "union_max":         B = max(F_good, key=len)
+    elif r == "union_closest":     B = min(F_good, key=lambda b: len(A.symmetric_difference(b)))
+    elif r == "union_disjoint_pref":
+        disj = [b for b in F_good if not (A & b)]
+        B = min(disj, key=len) if disj else min(F_good, key=len)
+    elif r == "union_superset_pref":
+        supers = [b for b in F_good if A <= b]
+        B = min(supers, key=len) if supers else min(F_good, key=len)
+    elif r == "union_random":      B = rng.choice(list(F_good))
+    elif r == "singleton_injection": B = frozenset([x])
+    else:                          return None
+    return B, A | B
 
 def is_known_strategy(rule_idx: int) -> tuple[bool, float]:
     """Return (is_known, penalty)."""
@@ -273,15 +282,19 @@ class FranklEnv(gym.Env):
             obs = family_features(F, self.n).astype(np.float32)
             return obs, reward, True, False, info
 
-        # Build the mapping φ
-        mapping = {}
-        valid   = True
+        # Build the mapping φ — record B chosen and image for each A
+        mapping      = {}   # A → image (A∪B)
+        mapping_B    = {}   # A → B chosen  (for traces)
+        valid        = True
         for A in F_bad:
-            img = apply_rule(rule, A, F_good, x, self._rng)
-            if img is None or img not in F_set:
-                valid = False
-                break
-            mapping[A] = img
+            result = apply_rule(rule, A, F_good, x, self._rng)
+            if result is None:
+                valid = False; break
+            B, img = result
+            if img not in F_set:
+                valid = False; break
+            mapping[A]   = img
+            mapping_B[A] = B
 
         if not valid:
             # Rule produced an image outside F — invalid step
@@ -297,6 +310,19 @@ class FranklEnv(gym.Env):
 
         is_injective = (n_unique == len(F_bad))
         info["injective"] = is_injective
+
+        # Full mapping trace — serialisable as sorted-list pairs
+        def fs(s): return sorted(s)   # frozenset → sorted list for JSON
+        info["mapping_trace"] = [
+            {
+                "A":     fs(A),
+                "B":     fs(mapping_B[A]),
+                "image": fs(mapping[A]),
+            }
+            for A in F_bad
+        ]
+        info["F_bad"]  = [fs(A) for A in F_bad]
+        info["F_good"] = [fs(A) for A in F_good]
 
         # Known-strategy penalty
         known, penalty = is_known_strategy(rule)

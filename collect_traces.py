@@ -62,10 +62,17 @@ def main():
         env    = FranklEnv(n=n, max_steps=1, seed=42)
         proved = 0
 
+        skipped = 0
         with open(trace_path, "w") as tf:
             for ep in range(1, n_episodes + 1):
-                r = run_episode(env, ep, show_think=False,
-                                temperature=args.temperature)
+                try:
+                    r = run_episode(env, ep, show_think=False,
+                                    temperature=args.temperature)
+                except Exception as e:
+                    print(f"\n  [ep {ep} error: {e}] skipping")
+                    skipped += 1
+                    continue
+
                 record = {k: v for k, v in r.items() if k != "think"}
                 tf.write(json.dumps(record) + "\n")
                 tf.flush()
@@ -78,10 +85,11 @@ def main():
                     bar    = int(30 * ep / n_episodes)
                     print(f"  [{'█'*bar}{'░'*(30-bar)}] {ep}/{n_episodes}  "
                           f"{status}  rule={r['rule']:<22}  "
-                          f"proved={proved}",
+                          f"proved={proved}  skipped={skipped}",
                           end="\r", flush=True)
 
-        print(f"\n  n={n}: {proved}/{n_episodes} proved ({100*proved/n_episodes:.1f}%)\n")
+        ran = n_episodes - skipped
+        print(f"\n  n={n}: {proved}/{ran} proved ({100*proved/ran:.1f}% of {ran} ran, {skipped} skipped)\n")
 
     print(f"All traces written to traces/")
     print(f"Next step: python3 build_dataset.py")

@@ -74,9 +74,13 @@ def call_ollama(prompt: str, temperature: float = 0.3) -> tuple[str, str]:
         "stream": False,
         "options": {"temperature": temperature},
     }
-    resp = requests.post(OLLAMA_URL, json=payload, timeout=300)
-    resp.raise_for_status()
-    content = resp.json()["message"]["content"]
+    try:
+        resp = requests.post(OLLAMA_URL, json=payload, timeout=120)
+        resp.raise_for_status()
+        content = resp.json()["message"]["content"]
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+        print(f"  [ollama timeout/conn: {type(e).__name__}] returning empty")
+        return "", ""
 
     # Split <think> block from final answer
     think_match = re.search(r"<think>(.*?)</think>", content, re.DOTALL)

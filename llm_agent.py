@@ -1,29 +1,31 @@
 """
-LLM Agent for FranklEnv using DeepSeek-R1 (via Ollama).
+LLM Agent for FranklEnv.
 
-The model receives a natural-language description of the current
-union-closed family, its Φ-scores, and the available mapping rules.
-It reasons (chain-of-thought) and returns a (element, rule) action.
+Supports two backends:
+  ollama  (default) — calls a local Ollama server; good for local dev
+  hf                — loads model directly via HuggingFace transformers;
+                      works on GPU clusters with no Ollama required
 
 Usage:
-    python3 llm_agent.py                    # run 10 episodes, show reasoning
-    python3 llm_agent.py --episodes 50      # benchmark
-    python3 llm_agent.py --quiet            # suppress <think> blocks
+    python3 llm_agent.py                                  # Ollama, 10 eps
+    python3 llm_agent.py --backend hf                     # HF inference
+    python3 llm_agent.py --backend hf --hf-model Qwen/Qwen2.5-1.5B-Instruct
+    python3 llm_agent.py --episodes 50 --quiet
 """
 
 import argparse
 import json
 import os
 import re
-import requests
 import time
 from collections import defaultdict
 from datetime import datetime
 
 from rl_env import FranklEnv, RULES, N_RULES, phi_scores, all_subsets
 
-OLLAMA_URL  = "http://localhost:11434/api/chat"
-MODEL       = "llama3.2:3b"
+OLLAMA_URL       = "http://localhost:11434/api/chat"
+OLLAMA_MODEL     = "llama3.2:3b"
+DEFAULT_HF_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 
 
 # ── Prompt builder ────────────────────────────────────────────────────────────
@@ -61,15 +63,13 @@ Reply with ONLY valid JSON, no markdown:
 {{"element":<1-{n}>,"rule":<0-{N_RULES-1}>,"reason":"<one sentence>"}}"""
 
 
-# ── Ollama call ───────────────────────────────────────────────────────────────
+# ── Ollama backend ────────────────────────────────────────────────────────────
 
 def call_ollama(prompt: str, temperature: float = 0.3) -> tuple[str, str]:
-    """
-    Returns (think_block, final_answer).
-    DeepSeek-R1 wraps chain-of-thought in <think>...</think>.
-    """
+    """Call a local Ollama server. Returns (think_block, answer)."""
+    import requests
     payload = {
-        "model": MODEL,
+        "model": OLLAMA_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "stream": False,
         "options": {"temperature": temperature},
@@ -82,11 +82,68 @@ def call_ollama(prompt: str, temperature: float = 0.3) -> tuple[str, str]:
         print(f"  [ollama timeout/conn: {type(e).__name__}] returning empty")
         return "", ""
 
-    # Split <think> block from final answer
     think_match = re.search(r"<think>(.*?)</think>", content, re.DOTALL)
-    think = think_match.group(1).strip() if think_match else ""
+    think  = think_match.group(1).strip() if think_match else ""
     answer = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
     return think, answer
+
+
+# ── HuggingFace backend ────────────────────────────────────────────────────────
+
+_hf_model     = None
+_hf_tokenizer = None
+_hf_model_id  = None
+
+
+def load_hf_model(model_id: str):
+    """Load model + tokenizer once; subsequent calls are no-ops."""
+    global _hf_model, _hf_tokenizer, _hf_model_id
+    if _hf_model is not None and _hf_model_id == model_id:
+        return
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    print(f"[hf] Loading {model_id}...")
+    dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+    _hf_tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
+    if _hf_tokenizer.pad_token is None:
+        _hf_tokenizer.pad_token = _hf_tokenizer.eos_token
+    _hf_model = AutoModelForCausalLM.from_pretrained(
+        model_id, dtype=dtype, device_map="auto", trust_remote_code=True,
+    )
+    _hf_model.eval()
+    _hf_model_id = model_id
+    print(f"[hf] Model loaded on {next(_hf_model.parameters()).device}")
+
+
+def call_hf(prompt: str, temperature: float = 0.3) -> tuple[str, str]:
+    """Run inference via loaded HF model. Returns ("", answer)."""
+    import torch
+    inputs = _hf_tokenizer(prompt, return_tensors="pt").to(
+        next(_hf_model.parameters()).device
+    )
+    with torch.no_grad():
+        out = _hf_model.generate(
+            **inputs,
+            max_new_tokens=128,
+            temperature=max(temperature, 1e-4),
+            do_sample=(temperature > 0),
+            pad_token_id=_hf_tokenizer.pad_token_id,
+        )
+    new_tokens = out[0][inputs["input_ids"].shape[1]:]
+    answer = _hf_tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
+    return "", answer   # no <think> block for standard chat models
+
+
+# ── Backend factory ────────────────────────────────────────────────────────────
+
+def build_inference_fn(backend: str, hf_model: str = DEFAULT_HF_MODEL):
+    """Return (inference_fn, model_name_str)."""
+    if backend == "hf":
+        load_hf_model(hf_model)
+        return call_hf, hf_model
+    else:
+        return call_ollama, OLLAMA_MODEL
 
 
 def parse_action(answer: str, n: int) -> tuple[int, int, str] | None:
@@ -107,8 +164,14 @@ def parse_action(answer: str, n: int) -> tuple[int, int, str] | None:
 
 # ── Episode runner ────────────────────────────────────────────────────────────
 
-def run_episode(env: FranklEnv, episode: int, show_think: bool = True,
+def run_episode(env: FranklEnv, episode: int,
+                inference_fn=None,
+                model_name: str = OLLAMA_MODEL,
+                show_think: bool = True,
                 temperature: float = 0.3) -> dict:
+    if inference_fn is None:
+        inference_fn = call_ollama
+
     obs, _ = env.reset()
     n      = env.n
     family = env.family
@@ -118,7 +181,7 @@ def run_episode(env: FranklEnv, episode: int, show_think: bool = True,
 
     prompt = build_prompt(family, n, phi, freqs, episode)
     t0     = time.perf_counter()
-    think, answer = call_ollama(prompt, temperature)
+    think, answer = inference_fn(prompt, temperature)
     elapsed = time.perf_counter() - t0
 
     parsed = parse_action(answer, n)
@@ -172,7 +235,7 @@ def run_episode(env: FranklEnv, episode: int, show_think: bool = True,
         "known":     info.get("known", False),
         "coverage":  info["coverage"],
         # ── LLM metadata ──────────────────────────────────────────────────
-        "model":     MODEL,
+        "model":     model_name,
         "think":     think,
         "elapsed":   elapsed,
     }
@@ -187,8 +250,13 @@ def main():
     parser.add_argument("--quiet",       action="store_true",
                         help="suppress <think> blocks")
     parser.add_argument("--temperature", type=float, default=0.3)
+    parser.add_argument("--backend",     choices=["ollama", "hf"], default="ollama",
+                        help="ollama (local server) or hf (HuggingFace direct)")
+    parser.add_argument("--hf-model",    default=DEFAULT_HF_MODEL,
+                        help="HuggingFace model ID (--backend hf only)")
     args = parser.parse_args()
 
+    inference_fn, model_name = build_inference_fn(args.backend, args.hf_model)
     env = FranklEnv(n=args.n, max_steps=1, seed=99)
 
     results      = []
@@ -199,8 +267,9 @@ def main():
     os.makedirs("logs", exist_ok=True)
     os.makedirs("traces", exist_ok=True)
     ts         = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_path   = f"logs/run_{MODEL.replace(':', '-')}_{ts}_n{args.n}_ep{args.episodes}.txt"
-    trace_path = f"traces/trace_{MODEL.replace(':', '-')}_{ts}_n{args.n}_ep{args.episodes}.jsonl"
+    safe_name  = model_name.replace("/", "-").replace(":", "-")
+    log_path   = f"logs/run_{safe_name}_{ts}_n{args.n}_ep{args.episodes}.txt"
+    trace_path = f"traces/trace_{safe_name}_{ts}_n{args.n}_ep{args.episodes}.jsonl"
     log_file   = open(log_path, "w")
     trace_file = open(trace_path, "w")
 
@@ -209,13 +278,16 @@ def main():
         log_file.write(line + "\n")
 
     log(f"Run started : {datetime.now().isoformat()}")
-    log(f"Model       : {MODEL}")
+    log(f"Model       : {model_name}  (backend={args.backend})")
     log(f"n           : {args.n}")
     log(f"Episodes    : {args.episodes}")
     log("=" * 70)
 
     for ep in range(1, args.episodes + 1):
-        r = run_episode(env, ep, show_think=not args.quiet,
+        r = run_episode(env, ep,
+                        inference_fn=inference_fn,
+                        model_name=model_name,
+                        show_think=not args.quiet,
                         temperature=args.temperature)
         results.append(r)
         rule_counts[r["rule"]] += 1

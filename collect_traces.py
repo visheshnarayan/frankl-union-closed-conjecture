@@ -16,7 +16,7 @@ import os
 from datetime import datetime
 
 from rl_env import FranklEnv
-from llm_agent import run_episode
+from llm_agent import run_episode, build_inference_fn, DEFAULT_HF_MODEL
 
 # ── Sweep config ──────────────────────────────────────────────────────────────
 # (n, n_episodes)
@@ -38,6 +38,10 @@ def main():
     parser.add_argument("--temperature", type=float, default=0.3)
     parser.add_argument("--quiet",       action="store_true",
                         help="Suppress per-episode status lines")
+    parser.add_argument("--backend",     choices=["ollama", "hf"], default="ollama",
+                        help="ollama (local server) or hf (HuggingFace direct, GPU cluster)")
+    parser.add_argument("--hf-model",    default=DEFAULT_HF_MODEL,
+                        help="HuggingFace model ID (--backend hf only)")
     args = parser.parse_args()
 
     total_ep = sum(ep for _, ep in SWEEP)
@@ -51,6 +55,9 @@ def main():
     if args.dry_run:
         print("(dry-run — exiting)")
         return
+
+    inference_fn, model_name = build_inference_fn(args.backend, args.hf_model)
+    print(f"Backend: {args.backend}  |  Model: {model_name}\n")
 
     os.makedirs("traces", exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -66,7 +73,10 @@ def main():
         with open(trace_path, "w") as tf:
             for ep in range(1, n_episodes + 1):
                 try:
-                    r = run_episode(env, ep, show_think=False,
+                    r = run_episode(env, ep,
+                                    inference_fn=inference_fn,
+                                    model_name=model_name,
+                                    show_think=False,
                                     temperature=args.temperature)
                 except Exception as e:
                     print(f"\n  [ep {ep} error: {e}] skipping")

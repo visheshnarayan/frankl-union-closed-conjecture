@@ -29,6 +29,9 @@ Despite its elementary statement, this has been open for over 40 years. No proof
 ├── rl_env.py           # Gymnasium RL environment for injection-based proof search
 ├── llm_agent.py        # LLM policy (llama3.2:3b via Ollama) that drives the env
 ├── inspect_traces.py   # Trace mining tool — surfaces novel mapping patterns
+├── collect_traces.py   # Sweep runner: collects traces across multiple n values
+├── build_dataset.py    # Filters winning traces → (prompt, completion) SFT pairs
+├── finetune.py         # LoRA fine-tune on the SFT dataset (HuggingFace + PEFT)
 └── icon.tex            # TikZ source for the diagram below
 ```
 
@@ -64,6 +67,24 @@ python3 llm_agent.py --episodes 20 --n 4
 ```bash
 python3 inspect_traces.py
 python3 inspect_traces.py --successes-only --novel-only
+```
+
+**Collect traces across all n values (full sweep):**
+```bash
+python3 collect_traces.py           # n=2..5, ~900 total episodes
+python3 collect_traces.py --dry-run # preview plan only
+```
+
+**Build fine-tuning dataset from winning traces:**
+```bash
+python3 build_dataset.py            # → dataset/train.jsonl
+```
+
+**Fine-tune a small model on successful proofs:**
+```bash
+pip install transformers peft datasets accelerate
+python3 finetune.py                                      # Qwen2.5-1.5B default
+python3 finetune.py --model Qwen/Qwen2.5-0.5B-Instruct  # smaller option
 ```
 
 **Compile the report:**

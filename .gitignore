@@ -5,3 +5,6 @@ icon.pdf
 *.log
 logs/
 traces/
+dataset/
+checkpoints/
+__pycache__/

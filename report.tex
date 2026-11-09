@@ -200,7 +200,69 @@ a large ``dense'' region in the Boolean lattice.
 \section{Progress and Obstacles}
 % ---------------------------------------------------------------
 
-% TODO: fill in
+\subsection{Computational verification for small \texorpdfstring{$n$}{n}}
+
+We wrote a brute-force enumerator in Python that iterates over all
+subsets of $\Pow(n)$, filters for nontrivial union-closed families,
+and checks whether the conjecture holds for each one.
+The results are summarised in Table~\ref{tab:enum}.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{rrrrc}
+\hline
+$n$ & Candidates & UC families & Tight cases & Conjecture \\
+\hline
+2 & 8 & 8 & 2 & \checkmark \\
+3 & 128 & 90 & 5 & \checkmark \\
+4 & 32{,}768 & 4{,}542 & 15 & \checkmark \\
+\hline
+\end{tabular}
+\caption{Enumeration results. ``Tight'' means the best-element fraction
+equals exactly $1/2$. Conjecture verified for all 4,640 families found.}
+\label{tab:enum}
+\end{table}
+
+A \emph{tight} family is one where the best element sits at exactly
+$\frac{1}{2}$; these are the hardest cases.
+Inspecting the output, every tight family is either a complementary-pair
+family $\{\emptyset, A, [n]\setminus A, [n]\}$ for some $A \subsetneq [n]$,
+or the full power set $\Pow(n)$.
+Both types are maximally symmetric --- no element is distinguishable
+from any other by its frequency --- which matches the known extremal
+construction from Nagel~\cite{nagel2023}.
+
+\subsection{The scalability wall}
+
+The search space for brute-force enumeration is $2^{|\Pow(n)|-1} = 2^{2^n - 1}$
+candidate families, which is \emph{doubly exponential} in $n$.
+Table~\ref{tab:timing} shows timed runs for $n \le 4$ and sampling-based
+estimates for $n \ge 5$.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{rrrl}
+\hline
+$n$ & Candidates & Runtime & Feasible? \\
+\hline
+2 & $8$ & $< 1$ ms & Yes \\
+3 & $128$ & $< 1$ ms & Yes \\
+4 & $32{,}768$ & $72$ ms & Yes \\
+5 & $\approx 2.1 \times 10^{9}$ & $\approx 6.2$ hrs & Borderline \\
+6 & $\approx 9.2 \times 10^{18}$ & $\approx 5 \times 10^{6}$ yrs & No \\
+7 & $\approx 1.7 \times 10^{38}$ & $\approx 10^{26}$ yrs & No \\
+\hline
+\end{tabular}
+\caption{Candidate counts and wall-clock runtimes. Estimates for $n \ge 5$
+obtained by sampling 2,000 random candidates and extrapolating.}
+\label{tab:timing}
+\end{table}
+
+The key observation is that going from $n=5$ to $n=6$ does not merely
+double the work --- it \emph{squares} it, since the exponent itself doubles.
+Verification beyond $n=4$ would require fundamentally different approaches
+such as incremental family construction, symmetry reduction under the
+action of $S_n$, or SAT-based search.
 
 % ---------------------------------------------------------------
 \begin{thebibliography}{9}

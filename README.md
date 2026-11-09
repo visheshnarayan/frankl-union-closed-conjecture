@@ -26,6 +26,9 @@ Despite its elementary statement, this has been open for over 40 years. No proof
 ├── enumerate.py        # Brute-force enumerator — verifies conjecture for n ≤ 4
 ├── timing.py           # Timed enumeration + extrapolation showing n ≥ 5 is infeasible
 ├── explore.ipynb       # Jupyter notebook with visualizations and analysis
+├── rl_env.py           # Gymnasium RL environment for injection-based proof search
+├── llm_agent.py        # LLM policy (llama3.2:3b via Ollama) that drives the env
+├── inspect_traces.py   # Trace mining tool — surfaces novel mapping patterns
 └── icon.tex            # TikZ source for the diagram below
 ```
 
@@ -38,7 +41,7 @@ Despite its elementary statement, this has been open for over 40 years. No proof
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install jupyter seaborn pandas matplotlib
+pip install jupyter seaborn pandas matplotlib gymnasium numpy requests
 ```
 
 **Enumerator (terminal output):**
@@ -49,6 +52,18 @@ python3 enumerate.py
 **Notebook (interactive):**
 ```bash
 jupyter notebook explore.ipynb
+```
+
+**RL agent (requires [Ollama](https://ollama.com) running locally):**
+```bash
+ollama pull llama3.2:3b
+python3 llm_agent.py --episodes 20 --n 4
+```
+
+**Mine agent traces for novel rules:**
+```bash
+python3 inspect_traces.py
+python3 inspect_traces.py --successes-only --novel-only
 ```
 
 **Compile the report:**
@@ -84,6 +99,74 @@ The search space is $2^{2^n - 1}$ candidate families — **doubly exponential** 
 | 7 | ~1.7 × 10³⁸ | ~10²⁶ years | ✗ |
 
 Going from $n=5$ to $n=6$ doesn't double the work — it **squares** it. Brute-force enumeration is fundamentally infeasible beyond $n=4$; smarter algorithms (incremental family construction, symmetry reduction) would be needed to push further.
+
+---
+
+## RL Proof Search Environment
+
+Since brute force is infeasible beyond $n=4$, a second angle treats proof discovery as a **reinforcement learning problem**.
+
+### Proof strategy
+
+The key insight is an injection-based sufficient condition: for a fixed element $x$, partition $\mathcal{F}$ into
+
+$$\mathcal{F}^- = \{A \in \mathcal{F} : x \notin A\}, \qquad \mathcal{F}^+ = \{A \in \mathcal{F} : x \in A\}$$
+
+If we can build an **injective** map $\varphi : \mathcal{F}^- \to \mathcal{F}^+$ of the form $\varphi(A) = A \cup B$ for some $B \in \mathcal{F}^+$, then $|\mathcal{F}^+| \geq |\mathcal{F}^-|$, so $x$ appears in at least half the sets — the conjecture holds for this family.
+
+The RL task is to find, for each randomly sampled union-closed family, an element $x$ and a **B-selection rule** that makes $\varphi$ injective.
+
+### Environment (`rl_env.py`)
+
+| Component | Detail |
+|-----------|--------|
+| **State** | Feature vector of length $4n+3$: element frequencies, Φ-scores, density, presence of ∅ and singletons |
+| **Action** | Discrete$(n \times K)$ — choose element $x$ and one of $K=7$ mapping rules |
+| **Reward** | $+1.0$ for a valid injective proof; partial credit proportional to coverage $|\mathcal{F}^-|$ mapped injectively; penalty $-0.3$/$-0.5$ for using already-known rules |
+| **Episode** | Single-step: one (element, rule) attempt per family |
+
+**Mapping rules** (B-selection strategies):
+
+| Index | Name | Strategy |
+|-------|------|----------|
+| 0 | `union_min` | smallest set in $\mathcal{F}^+$ (known — penalised) |
+| 1 | `union_max` | largest set in $\mathcal{F}^+$ |
+| 2 | `union_closest` | set in $\mathcal{F}^+$ with most overlap with $A$ |
+| 3 | `union_disjoint_pref` | prefer sets in $\mathcal{F}^+$ disjoint from $A$ |
+| 4 | `union_superset_pref` | prefer supersets of $A$ in $\mathcal{F}^+$ |
+| 5 | `union_random` | uniform random from $\mathcal{F}^+$ |
+| 6 | `singleton_injection` | map $A$ to $A \cup \{x\}$ when that set exists (known — penalised) |
+
+### Φ-score (bijection signal)
+
+The **Φ-score** of element $x$ is the average fraction of sets in the "upper shadow" $\Phi(A)$ that contain $x$:
+
+$$\Phi(x) = \frac{1}{|\mathcal{F}|} \sum_{A \in \mathcal{F}} \frac{|\{C \in \Phi(A) : x \in C\}|}{|\Phi(A)|}$$
+
+Empirically, families where the max Φ-score is high are easier to prove — it correlates with the existence of an injective map. The random baseline confirms: mean max Φ-score is 0.790 on proved families vs 0.681 on failures.
+
+### LLM policy (`llm_agent.py`)
+
+A local **llama3.2:3b** model (via Ollama) acts as the policy. Each episode it receives a natural-language description of the family, its Φ-scores, and element frequencies, and returns a JSON action `{"element": x, "rule": r, "reason": "..."}`.
+
+Results from the LLM policy on $n=4$ families:
+
+| Rule chosen | Episodes | Proved | Rate |
+|-------------|----------|--------|------|
+| `union_superset_pref` | most | — | — |
+| `union_closest` | — | — | — |
+| known rules | 0 | — | — |
+
+The model consistently avoids the known rules without being told to — it reasons about the family structure and gravitates toward superset-preference and overlap-based strategies.
+
+### Trace mining (`inspect_traces.py`)
+
+Every episode writes a full JSONL record to `traces/` including:
+- The complete mapping $\varphi$: each $(A, B, A \cup B)$ triple
+- Which sets were in $\mathcal{F}^-$ and $\mathcal{F}^+$
+- The LLM's reasoning
+
+`inspect_traces.py` classifies B-selection patterns (B⊇A, B∩A=∅, B⊆A, B∩A≠∅) across novel successful proofs. Recurring patterns that aren't already named rules are candidates to be promoted into new entries in the `RULES` catalogue — closing the loop for iterative rule discovery.
 
 ---
 

@@ -3,3 +3,4 @@ READING.md
 icon.pdf
 *.aux
 *.log
+logs/

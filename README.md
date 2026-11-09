@@ -168,17 +168,36 @@ Empirically, families where the max Φ-score is high are easier to prove — it 
 
 ### LLM policy (`llm_agent.py`)
 
-A local **llama3.2:3b** model (via Ollama) acts as the policy. Each episode it receives a natural-language description of the family, its Φ-scores, and element frequencies, and returns a JSON action `{"element": x, "rule": r, "reason": "..."}`.
+A local **llama3.2:3b** model (via Ollama) or any HuggingFace model acts as the policy. Each episode it receives a natural-language description of the family, its Φ-scores, and element frequencies, and returns a JSON action `{"element": x, "rule": r, "reason": "..."}`.
 
-Results from the LLM policy on $n=4$ families:
+#### Sweep results — 931 episodes across n=2..5
 
-| Rule chosen | Episodes | Proved | Rate |
-|-------------|----------|--------|------|
-| `union_superset_pref` | most | — | — |
-| `union_closest` | — | — | — |
-| known rules | 0 | — | — |
+| n | Episodes | Proved | Rate |
+|---|----------|--------|------|
+| 2 | 77  | 74  | 96.1% |
+| 3 | 140 | 104 | 74.3% |
+| 4 | 377 | 323 | 85.7% |
+| 5 | 154 | 133 | 86.4% |
 
-The model consistently avoids the known rules without being told to — it reasons about the family structure and gravitates toward superset-preference and overlap-based strategies.
+**Overall: 634/748 LLM-guided episodes proved (84.8%), 492 novel proofs (not using known strategies)**
+
+#### Rule breakdown (LLM choices, excluding parse-fail fallbacks)
+
+| Rule | Chosen | Proved | Rate | Note |
+|------|--------|--------|------|------|
+| `singleton_injection` | 171 | 142 | 83.0% | known — penalised |
+| `union_superset_pref` | 154 | 141 | **91.6%** | |
+| `union_closest`       | 131 | 126 | **96.2%** | |
+| `union_disjoint_pref` | 121 | 105 | 86.8% | |
+| `union_random`        | 141 | 108 | 76.6% | |
+| `union_max`           | 30  | 12  | 40.0% | weak strategy |
+
+**Key findings:**
+- `union_closest` achieves the highest success rate (96.2%) — favouring the $B \in \mathcal{F}^+$ with the smallest symmetric difference from $A$
+- `union_superset_pref` is the second strongest (91.6%) and is the most structurally motivated: it maps $A$ to $A \cup B$ where $B \supseteq A$, guaranteeing the image is strictly larger
+- `union_max` performs poorly (40%) — taking the largest set in $\mathcal{F}^+$ is too coarse, frequently causing collisions
+- The model still chooses `singleton_injection` (a known strategy) in ~23% of episodes, suggesting it hasn't fully internalised the novelty penalty — this is a fine-tuning signal
+- Φ-score correlates with proof success: mean max Φ-score is **0.931** on proved families vs **0.892** on failures, confirming it is a useful state feature
 
 ### Trace mining (`inspect_traces.py`)
 
@@ -188,6 +207,19 @@ Every episode writes a full JSONL record to `traces/` including:
 - The LLM's reasoning
 
 `inspect_traces.py` classifies B-selection patterns (B⊇A, B∩A=∅, B⊆A, B∩A≠∅) across novel successful proofs. Recurring patterns that aren't already named rules are candidates to be promoted into new entries in the `RULES` catalogue — closing the loop for iterative rule discovery.
+
+### Training pipeline
+
+The 492 novel successful proof traces feed into a supervised fine-tuning (SFT) pipeline:
+
+```
+collect_traces.py  →  build_dataset.py  →  finetune.py
+   (JSONL traces)      (prompt/completion     (LoRA on
+                         pairs filtered          Qwen2.5-1.5B)
+                         to novel wins)
+```
+
+The fine-tuned model learns to predict which (element, rule) pair succeeds given the family's features and Φ-scores, without relying on the penalised known strategies. Both Ollama (local) and HuggingFace direct inference (GPU cluster) are supported via `--backend ollama|hf`.
 
 ---
 

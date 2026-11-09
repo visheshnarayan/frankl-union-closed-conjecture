@@ -1,0 +1,19 @@
+# ── Core (enumerate, timing, notebook) ───────────────────────────────────────
+numpy>=1.26
+matplotlib>=3.8
+pandas>=2.1
+seaborn>=0.13
+jupyter>=1.0
+
+# ── RL environment ────────────────────────────────────────────────────────────
+gymnasium>=0.29
+
+# ── LLM agent (Ollama API) ────────────────────────────────────────────────────
+requests>=2.31
+
+# ── Fine-tuning pipeline (collect → build → finetune) ────────────────────────
+torch>=2.2
+transformers>=4.40
+peft>=0.10
+datasets>=2.18
+accelerate>=0.29

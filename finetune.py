@@ -119,7 +119,7 @@ def main():
     print(f"Loading model...")
     model = AutoModelForCausalLM.from_pretrained(
         args.model,
-        torch_dtype=dtype,
+        dtype=dtype,
         device_map="auto",
         trust_remote_code=True,
     )
@@ -159,10 +159,10 @@ def main():
         per_device_eval_batch_size=args.batch,
         gradient_accumulation_steps=max(1, 16 // args.batch),
         learning_rate=args.lr,
-        warmup_ratio=0.1,
+        warmup_steps=10,
         lr_scheduler_type="cosine",
         logging_steps=5,
-        evaluation_strategy="epoch",
+        eval_strategy="epoch",
         save_strategy="epoch",
         load_best_model_at_end=True,
         fp16=False,          # keep off for MPS/CPU compatibility

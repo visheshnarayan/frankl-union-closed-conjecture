@@ -191,6 +191,52 @@ $x$; Theorem~\ref{thm:upset} allows any up-set of bounded size.
 Nevertheless the result is nontrivial: it shows that $\F$ always has
 a large ``dense'' region in the Boolean lattice.
 
+\subsection{Why the general case remains open}
+
+The gap between what is known and the full conjecture is substantial, and
+each approach runs into a concrete obstruction.
+
+\textbf{Density bounds do not reach $\frac{1}{2}$.}
+The best unconditional lower bounds on the most-frequent element
+(Reimer, Balla, W\'{o}jcik) give frequencies of order
+$\Omega(\log m / n)$, $\Omega(\sqrt{\log n / n})$, and $\Omega(1/\log m)$
+respectively, where $m = |\F|$ and $n$ is the ground set size.
+All of these go to zero as $n$ or $m$ grows; none provides
+a constant lower bound of $\frac{1}{2}$ in full generality.
+
+\textbf{The injection approach has no universal rule.}
+The injection paradigm (Section~\ref{sec:easy}) reduces the conjecture to
+finding, for every union-closed $\F$ and element $x$, a B-selection rule
+producing an injective $\varphi$.
+Lemma~\ref{lem:fiber} shows the map $G \mapsto G \cup A$
+works when $A \in \F^+$ is small, but its fibre size $2^{|A|-1}$ grows
+with $|A|$, and in families with no small good sets the bound becomes trivial.
+No single rule is known to work universally: our computational experiments
+(Section~\ref{sec:comp-rl}) found {\small\texttt{union\_closest}} succeeds 96.2\%
+of the time but fails on some families, particularly the tight cases.
+
+\textbf{The up-set weakening cannot be directly promoted.}
+Theorem~\ref{thm:upset} guarantees a dense region in $\F$,
+but that region need not coincide with any star $[x,[n]]$.
+Promoting the result would require showing that among all up-sets $\U$
+achieving $|\F \cap \U| \ge \frac{1}{2}|\U|$,
+at least one is a star --- which is precisely the content of the conjecture.
+The two statements are therefore equivalent, not one strictly easier.
+
+\textbf{Averaging is insufficient.}
+The conjecture asserts existence of one good element, not that the average
+element is good.
+Since the average frequency can be well below $\frac{1}{2}|\F|$,
+any proof must somehow exploit the \emph{structure} of union-closure
+to find the exceptional element, rather than merely counting.
+Attempts to define a natural probability distribution on $[n]$ via entropy
+or correlation arguments (Gowers \cite{gowers2016}) have not yet succeeded.
+
+Together, these obstructions suggest that a proof will likely require a
+genuinely new structural insight into union-closed families --- one that
+simultaneously identifies a good element and exploits union-closure in a
+non-local way.
+
 % ---------------------------------------------------------------
 \section{Approaches and Ideas Explored}
 % ---------------------------------------------------------------
